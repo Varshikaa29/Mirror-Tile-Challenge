@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mirror Tile Challenge — Varshika Jain</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #f8f7f4; color: #1a1a1a; min-height: 100vh; padding: 24px 16px; }
+.container { max-width: 700px; margin: 0 auto; }
+h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+.sub { font-size: 13px; color: #666; margin-bottom: 20px; }
+.badge { display: inline-block; font-size: 11px; padding: 2px 10px; border-radius: 99px; background: #EEEDFE; color: #3C3489; font-weight: 500; margin-left: 8px; vertical-align: middle; }
+.controls { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; align-items: center; }
+.controls label { font-size: 13px; color: #555; }
+button { font-size: 13px; padding: 7px 16px; border-radius: 8px; border: 1px solid #d0cdc5; background: #fff; color: #333; cursor: pointer; font-family: inherit; transition: all 0.15s; }
+button:hover { background: #f0ede8; }
+button.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+button.green { background: #4A5C30; color: #fff; border-color: #4A5C30; }
+.grid-wrap { display: flex; justify-content: center; margin-bottom: 20px; }
+canvas { border: 1px solid #e0ddd5; border-radius: 10px; background: #fff; cursor: pointer; }
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.info-card { background: #fff; border: 1px solid #e0ddd5; border-radius: 10px; padding: 12px 14px; }
+.info-card .lbl { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+.info-card .val { font-size: 13px; font-weight: 500; color: #1a1a1a; }
+.palette { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+.palette-item { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; padding: 6px 12px; border-radius: 8px; border: 2px solid transparent; transition: all 0.15s; }
+.palette-item.selected { border-color: #1a1a1a; }
+.swatch { width: 28px; height: 28px; border-radius: 4px; }
+.footer { font-size: 12px; color: #999; text-align: center; margin-top: 20px; }
+.level-badge { display: inline-block; padding: 3px 12px; border-radius: 99px; font-size: 12px; font-weight: 500; }
+.l1 { background: #E1F5EE; color: #085041; }
+.l2 { background: #EEEDFE; color: #3C3489; }
+.l3 { background: #FAEEDA; color: #633806; }
+.msg { font-size: 13px; padding: 10px 14px; border-radius: 8px; background: #E1F5EE; color: #085041; margin-bottom: 12px; font-weight: 500; display: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Mirror Tile Challenge <span class="badge">Portfolio Project</span></h1>
+  <p class="sub">Click a tile to rotate it. Try to achieve the symmetry goal for each level. Made by Varshika Jain · CCL Portfolio</p>
+
+  <div class="controls">
+    <span style="font-size:13px;color:#555;font-weight:500;">Level</span>
+    <button id="l1" class="active" onclick="setLevel(1)">1 — Line Symmetry</button>
+    <button id="l2" onclick="setLevel(2)">2 — Rotational Symmetry</button>
+    <button id="l3" onclick="setLevel(3)">3 — Both Together</button>
+    <button class="green" onclick="resetGrid()" style="margin-left:auto">Reset</button>
+  </div>
+
+  <div style="margin-bottom:12px;">
+    <span class="level-badge l1" id="goal-badge">Goal: Line symmetry across any axis</span>
+  </div>
+
+  <div class="msg" id="win-msg">✓ Well done! That pattern has the required symmetry.</div>
+
+  <div class="palette">
+    <span style="font-size:13px;color:#555;">Tile colour:</span>
+    <div class="palette-item selected" id="pc-0" onclick="selectColor(0)">
+      <canvas width="28" height="28" id="sw0"></canvas> A
+    </div>
+    <div class="palette-item" id="pc-1" onclick="selectColor(1)">
+      <canvas width="28" height="28" id="sw1"></canvas> B
+    </div>
+    <div class="palette-item" id="pc-2" onclick="selectColor(2)">
+      <canvas width="28" height="28" id="sw2"></canvas> C
+    </div>
+  </div>
+
+  <div class="grid-wrap">
+    <canvas id="grid" width="360" height="360"></canvas>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-card"><div class="lbl">Current Level</div><div class="val" id="info-level">Level 1 — Line Symmetry</div></div>
+    <div class="info-card"><div class="lbl">Symmetry Detected</div><div class="val" id="info-sym">Click tiles to build a pattern</div></div>
+    <div class="info-card"><div class="lbl">How to play</div><div class="val">Click a tile to cycle its orientation. Each tile is split diagonally into two colours.</div></div>
+    <div class="info-card"><div class="lbl">What it teaches</div><div class="val">Line symmetry, rotational symmetry, and order of symmetry</div></div>
+  </div>
+
+  <div class="footer">Mirror Tile Challenge · Varshika Jain · BS Data Science, IIT Madras · CCL Portfolio</div>
+</div>
+
+<script>
+const N = 4;
+const TILE = 90;
+const COLORS = [
+  ['#534AB7', '#EEEDFE'],
+  ['#0F6E56', '#E1F5EE'],
+  ['#993C1D', '#FAECE7'],
+];
+
+let grid = []; // each cell: { rot: 0-3, color: 0-2 }
+let selectedColor = 0;
+let level = 1;
+
+function initGrid() {
+  grid = [];
+  for (let r = 0; r < N; r++) {
+    grid.push([]);
+    for (let c = 0; c < N; c++) {
+      grid[r].push({ rot: 0, color: 0 });
+    }
+  }
+}
+
+function drawSwatch(id, ci) {
+  const cv = document.getElementById(id);
+  const cx = cv.getContext('2d');
+  cx.clearRect(0,0,28,28);
+  cx.beginPath(); cx.moveTo(0,0); cx.lineTo(28,0); cx.lineTo(28,28); cx.closePath();
+  cx.fillStyle = COLORS[ci][0]; cx.fill();
+  cx.beginPath(); cx.moveTo(0,0); cx.lineTo(0,28); cx.lineTo(28,28); cx.closePath();
+  cx.fillStyle = COLORS[ci][1]; cx.fill();
+}
+
+function drawTile(ctx, x, y, rot, ci) {
+  ctx.save();
+  ctx.translate(x + TILE/2, y + TILE/2);
+  ctx.rotate(rot * Math.PI / 2);
+  ctx.translate(-TILE/2, -TILE/2);
+
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(TILE,0); ctx.lineTo(TILE,TILE); ctx.closePath();
+  ctx.fillStyle = COLORS[ci][0]; ctx.fill();
+
+  ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(0,TILE); ctx.lineTo(TILE,TILE); ctx.closePath();
+  ctx.fillStyle = COLORS[ci][1]; ctx.fill();
+
+  ctx.restore();
+
+  ctx.strokeStyle = '#e0ddd5';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, TILE, TILE);
+}
+
+function drawGrid() {
+  const cv = document.getElementById('grid');
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, N*TILE, N*TILE);
+  for (let r = 0; r < N; r++)
+    for (let c = 0; c < N; c++)
+      drawTile(ctx, c*TILE, r*TILE, grid[r][c].rot, grid[r][c].color);
+  checkSymmetry();
+}
+
+function tileKey(r, c) { return grid[r][c].rot + ',' + grid[r][c].color; }
+
+function hasLineSymmetryH() {
+  for (let r = 0; r < N; r++)
+    for (let c = 0; c < N; c++)
+      if (tileKey(r,c) !== tileKey(N-1-r,c)) return false;
+  return true;
+}
+function hasLineSymmetryV() {
+  for (let r = 0; r < N; r++)
+    for (let c = 0; c < N; c++)
+      if (tileKey(r,c) !== tileKey(r,N-1-c)) return false;
+  return true;
+}
+function hasLineSymmetryD1() {
+  for (let r = 0; r < N; r++)
+    for (let c = 0; c < N; c++)
+      if (tileKey(r,c) !== tileKey(c,r)) return false;
+  return true;
+}
+function hasRot2() {
+  for (let r = 0; r < N; r++)
+    for (let c = 0; c < N; c++)
+      if (tileKey(r,c) !== tileKey(N-1-r,N-1-c)) return false;
+  return true;
+}
+function hasRot4() {
+  for (let r = 0; r < N; r++)
+    for (let c = 0; c < N; c++)
+      if (tileKey(r,c) !== tileKey(N-1-c,r)) return false;
+  return true;
+}
+
+function checkSymmetry() {
+  const lh = hasLineSymmetryH(), lv = hasLineSymmetryV(), d1 = hasLineSymmetryD1();
+  const r2 = hasRot2(), r4 = hasRot4();
+  let lines = [lh && 'horizontal', lv && 'vertical', d1 && 'diagonal'].filter(Boolean);
+  let rots = [r4 && 'order 4', !r4 && r2 && 'order 2'].filter(Boolean);
+  let desc = '';
+  if (lines.length) desc += 'Line symmetry (' + lines.join(', ') + '). ';
+  if (rots.length) desc += 'Rotational symmetry ' + rots.join(', ') + '.';
+  if (!desc) desc = 'No symmetry yet';
+  document.getElementById('info-sym').textContent = desc;
+
+  let won = false;
+  if (level === 1) won = lines.length > 0;
+  if (level === 2) won = r2;
+  if (level === 3) won = lines.length > 0 && r2;
+
+  const msg = document.getElementById('win-msg');
+  msg.style.display = won ? 'block' : 'none';
+}
+
+document.getElementById('grid').addEventListener('click', function(e) {
+  const rect = this.getBoundingClientRect();
+  const scale = N*TILE / rect.width;
+  const x = (e.clientX - rect.left) * scale;
+  const y = (e.clientY - rect.top) * scale;
+  const c = Math.floor(x / TILE), r = Math.floor(y / TILE);
+  if (r >= 0 && r < N && c >= 0 && c < N) {
+    grid[r][c].rot = (grid[r][c].rot + 1) % 4;
+    grid[r][c].color = selectedColor;
+    drawGrid();
+  }
+});
+
+function selectColor(i) {
+  selectedColor = i;
+  document.querySelectorAll('.palette-item').forEach((el,j) => el.classList.toggle('selected', i===j));
+}
+
+function setLevel(l) {
+  level = l;
+  document.querySelectorAll('.controls button:not(.green)').forEach((b,i) => b.classList.toggle('active', i===l-1));
+  const goals = ['Goal: Line symmetry across any axis', 'Goal: Rotational symmetry (order 2 or higher)', 'Goal: Both line AND rotational symmetry'];
+  const badges = ['l1','l2','l3'];
+  const labels = ['Level 1 — Line Symmetry','Level 2 — Rotational Symmetry','Level 3 — Both Together'];
+  const gb = document.getElementById('goal-badge');
+  gb.textContent = goals[l-1];
+  gb.className = 'level-badge ' + badges[l-1];
+  document.getElementById('info-level').textContent = labels[l-1];
+  document.getElementById('win-msg').style.display = 'none';
+  checkSymmetry();
+}
+
+function resetGrid() { initGrid(); drawGrid(); document.getElementById('win-msg').style.display='none'; }
+
+drawSwatch('sw0', 0); drawSwatch('sw1', 1); drawSwatch('sw2', 2);
+initGrid();
+drawGrid();
+</script>
+</body>
+</html>
